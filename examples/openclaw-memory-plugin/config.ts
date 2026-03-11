@@ -10,6 +10,7 @@ export type MemoryOpenVikingConfig = {
   /** Port for local server when mode is "local". Ignored when mode is "remote". */
   port?: number;
   baseUrl?: string;
+  agentId?: string;
   apiKey?: string;
   targetUri?: string;
   timeoutMs?: number;
@@ -36,6 +37,15 @@ const DEFAULT_INGEST_REPLY_ASSIST = true;
 const DEFAULT_INGEST_REPLY_ASSIST_MIN_SPEAKER_TURNS = 2;
 const DEFAULT_INGEST_REPLY_ASSIST_MIN_CHARS = 120;
 const DEFAULT_LOCAL_CONFIG_PATH = join(homedir(), ".openviking", "ov.conf");
+
+const DEFAULT_AGENT_ID = "default";
+
+function resolveAgentId(configured: unknown): string {
+  if (typeof configured === "string" && configured.trim()) {
+    return configured.trim();
+  }
+  return DEFAULT_AGENT_ID;
+}
 
 function resolveEnvVars(value: string): string {
   return value.replace(/\$\{([^}]+)\}/g, (_, envVar) => {
@@ -89,6 +99,7 @@ export const memoryOpenVikingConfigSchema = {
         "configPath",
         "port",
         "baseUrl",
+        "agentId",
         "apiKey",
         "targetUri",
         "timeoutMs",
@@ -105,7 +116,7 @@ export const memoryOpenVikingConfigSchema = {
       "memory-openviking config",
     );
 
-    const mode = (cfg.mode === "local" || cfg.mode === "remote" ? cfg.mode : "remote") as
+    const mode = (cfg.mode === "local" || cfg.mode === "remote" ? cfg.mode : "local") as
       | "local"
       | "remote";
     const port = Math.max(1, Math.min(65535, Math.floor(toNumber(cfg.port, DEFAULT_PORT))));
@@ -136,6 +147,7 @@ export const memoryOpenVikingConfigSchema = {
       configPath,
       port,
       baseUrl: resolvedBaseUrl,
+      agentId: resolveAgentId(cfg.agentId),
       apiKey: rawApiKey ? resolveEnvVars(rawApiKey) : "",
       targetUri: typeof cfg.targetUri === "string" ? cfg.targetUri : DEFAULT_TARGET_URI,
       timeoutMs: Math.max(1000, Math.floor(toNumber(cfg.timeoutMs, DEFAULT_TIMEOUT_MS))),
@@ -193,6 +205,11 @@ export const memoryOpenVikingConfigSchema = {
       label: "OpenViking Base URL (remote)",
       placeholder: DEFAULT_BASE_URL,
       help: "HTTP URL when mode is remote (or use ${OPENVIKING_BASE_URL})",
+    },
+    agentId: {
+      label: "Agent ID",
+      placeholder: "auto-generated",
+      help: "Identifies this agent to OpenViking (sent as X-OpenViking-Agent header). Defaults to \"default\" if not set.",
     },
     apiKey: {
       label: "OpenViking API Key",

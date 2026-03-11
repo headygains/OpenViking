@@ -22,8 +22,7 @@ from datetime import datetime
 from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-from pyagfs.exceptions import AGFSHTTPError
-
+from openviking.pyagfs.exceptions import AGFSHTTPError
 from openviking.server.identity import RequestContext, Role
 from openviking.utils.time_utils import format_simplified, get_current_timestamp, parse_iso_datetime
 from openviking_cli.exceptions import NotFoundError
@@ -307,9 +306,8 @@ class VikingFS:
         """Content search by pattern or keywords."""
         self._ensure_access(uri, ctx)
         path = self._uri_to_path(uri, ctx=ctx)
-        result =  await asyncio.to_thread(
-            self.agfs.grep,
-            path, pattern, True, case_insensitive, False, node_limit=node_limit
+        result = await asyncio.to_thread(
+            self.agfs.grep, path, pattern, True, case_insensitive, False, node_limit=node_limit
         )
         if result.get("matches", None) is None:
             result["matches"] = []
@@ -686,7 +684,11 @@ class VikingFS:
             TypedQuery,
         )
 
-        session_summary = session_info.get("summary") if session_info else None
+        summary_list = session_info.get("summaries") if session_info else None
+        if isinstance(summary_list, list):
+            session_summary = "\n\n".join(str(item) for item in summary_list if item)
+        else:
+            session_summary = ""
         recent_messages = session_info.get("recent_messages") if session_info else None
 
         query_plan: Optional[QueryPlan] = None

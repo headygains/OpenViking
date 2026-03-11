@@ -16,23 +16,21 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 class Summarizer:
     """
     Handles summarization of resources.
     """
-    
+
     def __init__(self, vlm_processor: "VLMProcessor"):
         self.vlm_processor = vlm_processor
 
     async def summarize(
         self,
-        resource_uris: List[str],
+        resource_uri: str,
         ctx: "RequestContext",
         skip_vectorization: bool = False,
-        is_incremental_update: bool = False,
         target_uri: str = "",
-        lock_resource_uri: str = "",
-        lock_id: str = "",
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -49,31 +47,28 @@ class Summarizer:
         logger.info(f"Summarizing resources: {resource_uris} (skip_vectorization={skip_vectorization}, is_incremental_update={is_incremental_update}, target_uri={target_uri}, lock_resource_uri={lock_resource_uri}, lock_id={lock_id})")
         queue_manager = get_queue_manager()
         semantic_queue = queue_manager.get_queue(queue_manager.SEMANTIC, allow_create=True)
-        
+
         enqueued_count = 0
-        for uri in resource_uris:
-            # Determine context_type based on URI
-            context_type = "resource"
-            if uri.startswith("viking://memory/"):
-                context_type = "memory"
-            elif uri.startswith("viking://agent/skills/"):
-                context_type = "skill"
-                
-            msg = SemanticMsg(
-                uri=uri,
-                context_type=context_type,
-                account_id=ctx.account_id,
-                user_id=ctx.user.user_id,
-                agent_id=ctx.user.agent_id,
-                role=ctx.role.value,
-                skip_vectorization=skip_vectorization,
-                is_incremental_update=is_incremental_update,
-                target_uri=target_uri,
-                lock_resource_uri=lock_resource_uri,
-                lock_id=lock_id,
-            )
-            await semantic_queue.enqueue(msg)
-            enqueued_count += 1
-            logger.info(f"Enqueued semantic generation for: {uri} (skip_vectorization={skip_vectorization})")
-            
+        context_type = "resource"
+        if resource_uri.startswith("viking://memory/"):
+            context_type = "memory"
+        elif resource_uri.startswith("viking://agent/skills/"):
+            context_type = "skill"
+
+        msg = SemanticMsg(
+            uri=resource_uri,
+            context_type=context_type,
+            account_id=ctx.account_id,
+            user_id=ctx.user.user_id,
+            agent_id=ctx.user.agent_id,
+            role=ctx.role.value,
+            skip_vectorization=skip_vectorization,
+            target_uri=target_uri,
+        )
+        await semantic_queue.enqueue(msg)
+        enqueued_count += 1
+        logger.info(
+            f"Enqueued semantic generation for: {uri} (skip_vectorization={skip_vectorization})"
+        )
+
         return {"status": "success", "enqueued_count": enqueued_count}
